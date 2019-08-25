@@ -4,18 +4,20 @@ from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
 from django.contrib.auth import logout as auth_logout
-from django.shortcuts import redirect
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import translation
-from django.utils.http import quote
+from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.base import TemplateView
+from django.views.decorators.cache import never_cache
 from jwkest.jws import JWT
 from oauth2_provider.models import get_application_model
+from oidc_provider.lib.endpoints.authorize import AuthorizeEndpoint
 from oidc_provider.lib.endpoints.token import TokenEndpoint
-from oidc_provider.lib.errors import TokenError, UserAuthError
-from oidc_provider.lib.utils.token import client_id_from_id_token
-from oidc_provider.models import Client, Token
+from oidc_provider.lib import errors as oidc_errors
+from oidc_provider.models import Client
 from oidc_provider.views import AuthorizeView, EndSessionView
 from social_django.models import UserSocialAuth
 from social_django.utils import load_backend, load_strategy
@@ -25,19 +27,82 @@ from oidc_apis.models import ApiScope
 from .models import LoginMethod, OidcClientOptions
 
 
+# This is used to pass the request query dict to the OIDC endpoint
+class DummyRequest:
+    def __init__(self, query_dict):
+        self.GET = query_dict
+        self.method = 'GET'
+
+
+def get_return_to_rp_uri(request, redirect_uri_params):
+    """Returns an URI to redirect the browser to if user cancels authentication
+    """
+
+    params = {key: val[0] for key, val in redirect_uri_params.items()}
+    dummy_request = DummyRequest(params)
+    authorize = AuthorizeEndpoint(dummy_request)
+    try:
+        # This will make sure redirect URI is valid.
+        authorize.validate_params()
+    except (
+        oidc_errors.ClientIdError, oidc_errors.RedirectUriError, oidc_errors.AuthorizeError
+    ):
+        return None
+
+    cancel_error = oidc_errors.AuthorizeError(
+        authorize.params['redirect_uri'], 'access_denied', authorize.grant_type
+    )
+    return_uri = cancel_error.create_uri(
+        authorize.params['redirect_uri'],
+        authorize.params['state']
+    )
+    return return_uri
+
+
 class LoginView(TemplateView):
     template_name = "login.html"
 
+    def get_login_methods(self, request, allowed_methods, redirect_uri):
+        methods = []
+        for m in allowed_methods:
+            assert isinstance(m, LoginMethod)
+
+            begin_url = reverse('social:begin', kwargs={'backend': m.provider_id})
+
+            url_params = {}
+            if redirect_uri:
+                url_params['next'] = redirect_uri
+
+            backend = load_backend(load_strategy(request), m.provider_id, redirect_uri=None)
+            if hasattr(backend, 'get_allowed_idp_name'):
+                idp_name = backend.get_allowed_idp_name(request)
+                url_params['idp'] = idp_name
+
+            if url_params:
+                begin_url += '?' + urlencode(url_params)
+
+            m.login_url = begin_url
+            methods.append(m)
+
+        return methods
+
     def get(self, request, *args, **kwargs):  # noqa  (too complex)
+        # Log the user out first so that we don't end up in the PSA "connect"
+        # flow.
+        if self.request.user.is_authenticated:
+            auth_logout(self.request)
+
         next_url = request.GET.get('next')
         app = None
         oidc_client = None
+        authorize_uri_params = None
+        self.return_to_rp_uri = None
 
         if next_url:
             # Determine application from the 'next' query argument.
             # FIXME: There should be a better way to get the app id.
-            params = parse_qs(urlparse(next_url).query)
-            client_id = params.get('client_id')
+            authorize_uri_params = parse_qs(urlparse(next_url).query)
+            client_id = authorize_uri_params.get('client_id')
 
             if client_id and len(client_id):
                 client_id = client_id[0].strip()
@@ -53,8 +118,6 @@ class LoginView(TemplateView):
                 except Client.DoesNotExist:
                     pass
 
-            next_url = quote(next_url)
-
         allowed_methods = None
         if app:
             allowed_methods = app.login_methods.all()
@@ -65,37 +128,26 @@ class LoginView(TemplateView):
             except OidcClientOptions.DoesNotExist:
                 pass
 
+            self.return_to_rp_uri = get_return_to_rp_uri(request, authorize_uri_params)
+
         if allowed_methods is None:
-            allowed_methods = LoginMethod.objects.all()
+            # Only allow the methods that do not require registered clients
+            # (this might happen when a browser enters LoginView directly for
+            # testing purposes).
+            allowed_methods = LoginMethod.objects.filter(require_registered_client=False)
 
-        methods = []
-        for m in allowed_methods:
-            if m.provider_id == 'saml':
-                continue  # SAML support removed
+        login_methods = self.get_login_methods(request, allowed_methods, next_url)
 
-            m.login_url = reverse('social:begin', kwargs={'backend': m.provider_id})
-            if next_url:
-                m.login_url += '?next=' + next_url
+        if len(login_methods) == 1:
+            return redirect(login_methods[0].login_url)
 
-            if m.provider_id in getattr(settings, 'SOCIAL_AUTH_SUOMIFI_ENABLED_IDPS'):
-                # This check is used to exclude Suomi.fi auth method when using non-compliant auth provider
-                if next_url is None:
-                    continue
-                if re.match(getattr(settings, 'SOCIAL_AUTH_SUOMIFI_CALLBACK_MATCH'), next_url) is None:
-                    continue
-                m.login_url += '&amp;idp=' + m.provider_id
-
-            methods.append(m)
-
-        if len(methods) == 1:
-            return redirect(methods[0].login_url)
-
-        self.login_methods = methods
+        self.login_methods = login_methods
         return super(LoginView, self).get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super(LoginView, self).get_context_data(**kwargs)
         context['login_methods'] = self.login_methods
+        context['return_to_rp_uri'] = self.return_to_rp_uri
         return context
 
 
@@ -103,6 +155,22 @@ def _process_uris(uris):
     if isinstance(uris, list):
         return uris
     return uris.splitlines()
+
+
+def create_logout_response(request, user, backend_name, redirect_uri):
+    backend = load_backend(load_strategy(request), backend_name, redirect_uri=None)
+
+    # social_auth creates a new user for each (provider, uid) pair so
+    # we don't need to worry about duplicates
+    try:
+        social_user = UserSocialAuth.objects.get(user=user, provider=backend_name)
+    except UserSocialAuth.DoesNotExist:
+        return None
+
+    if not hasattr(backend, 'create_logout_response'):
+        return None
+
+    return backend.create_logout_response(social_user, redirect_uri)
 
 
 class LogoutView(TemplateView):
@@ -130,11 +198,32 @@ class LogoutView(TemplateView):
         return uri in (u for uri_text in uri_texts for u in _process_uris(uri_text))
 
     def get(self, *args, **kwargs):
+        user = self.request.user
+        backend_name = None
+        if user.is_authenticated:
+            backend_name = self.request.session.get('social_auth_last_login_backend', None)
+
         if self.request.user.is_authenticated:
             auth_logout(self.request)
+
         uri = self.request.GET.get('next')
         if self._validate_client_uri(uri):
             return redirect(uri)
+
+        redirect_uri = self.request.GET.get('next')
+        if redirect_uri and not self._validate_client_uri(redirect_uri):
+            redirect_uri = None
+
+        if backend_name:
+            logout_response = create_logout_response(
+                self.request, user, backend_name, redirect_uri
+            )
+            if logout_response is not None:
+                return logout_response
+
+        if redirect_uri:
+            return redirect(redirect_uri)
+
         return super(LogoutView, self).get(*args, **kwargs)
 
 
@@ -154,10 +243,24 @@ class TunnistamoOidcAuthorizeView(AuthorizeView):
 
         for locale in request_locales:
             if locale in available_locales:
-                with translation.override(locale):
-                    return super().get(request, *args, **kwargs)
+                break
+        else:
+            locale = None
 
-        return super().get(request, *args, **kwargs)
+        if locale:
+            translation.activate(locale)
+
+        resp = super().get(request, *args, **kwargs)
+        if locale:
+            # Save the UI language in a dedicated cookie, because the
+            # session will be nuked if we go through the login view.
+            resp.set_cookie(
+                settings.LANGUAGE_COOKIE_NAME, locale,
+                max_age=settings.LANGUAGE_COOKIE_AGE,
+                path=settings.LANGUAGE_COOKIE_PATH,
+                domain=settings.LANGUAGE_COOKIE_DOMAIN,
+            )
+        return resp
 
     def post(self, request, *args, **kwargs):
         request.POST = _extend_scope_in_query_params(request.POST)
@@ -166,53 +269,20 @@ class TunnistamoOidcAuthorizeView(AuthorizeView):
 
 class TunnistamoOidcEndSessionView(EndSessionView):
     def dispatch(self, request, *args, **kwargs):
-        # check if the authenticated user has active Suomi.fi login
+        backend_name = None
         user = request.user
-        social_user = None
-        if request.user.is_authenticated:
-            # social_auth creates a new user for each (provider, uid) pair so
-            # we don't need to worry about duplicates
-            try:
-                social_user = UserSocialAuth.objects.get(user=user, provider='suomifi')
-            except UserSocialAuth.DoesNotExist:
-                pass
+        if user.is_authenticated:
+            backend_name = self.request.session.get('social_auth_last_login_backend', None)
+
         # clear Django session and get redirect URL
         response = super().dispatch(request, *args, **kwargs)
-        # create Suomi.fi logout redirect if needed
-        if social_user is not None:
-            response = self._create_suomifi_logout_response(social_user, user, request, response.url)
-        return response
 
-    @staticmethod
-    def _create_suomifi_logout_response(social_user, user, request, redirect_url):
-        """Creates Suomi.fi logout redirect response for given social_user
-        and removes all related OIDC tokens. The user is directed to redirect_url
-        after succesful Suomi.fi logout.
-        """
-        token = ''
-        saml_backend = load_backend(
-            load_strategy(request),
-            'suomifi',
-            redirect_uri=getattr(settings, 'LOGIN_URL')
-        )
-
-        id_token_hint = request.GET.get('id_token_hint')
-        if id_token_hint:
-            client_id = client_id_from_id_token(id_token_hint)
-            try:
-                client = Client.objects.get(client_id=client_id)
-                if redirect_url in client.post_logout_redirect_uris:
-                    token = saml_backend.create_return_token(
-                        client_id,
-                        client.post_logout_redirect_uris.index(redirect_url))
-            except Client.DoesNotExist:
-                pass
-
-        response = saml_backend.create_logout_redirect(social_user, token)
-
-        for token in Token.objects.filter(user=user):
-            if token.id_token.get('aud') == client_id:
-                token.delete()
+        if backend_name is not None:
+            # If the backend supports logout, ask it to generate a logout
+            # response to pass to the browser.
+            backend_response = create_logout_response(request, user, backend_name, response.url)
+            if backend_response is not None:
+                response = backend_response
 
         return response
 
@@ -236,10 +306,9 @@ class TunnistamoOidcTokenView(View):
 
             response = TokenEndpoint.response(dic)
             return response
-
-        except TokenError as error:
+        except oidc_errors.TokenError as error:
             return TokenEndpoint.response(error.create_dict(), status=400)
-        except UserAuthError as error:
+        except oidc_errors.UserAuthError as error:
             return TokenEndpoint.response(error.create_dict(), status=403)
 
 
@@ -255,3 +324,31 @@ def _add_api_scopes(scope_string):
     scopes = scope_string.split()
     extended_scopes = ApiScope.extend_scope(scopes)
     return ' '.join(extended_scopes)
+
+
+def show_profile(request):
+    ATTR_NAMES = ['first_name', 'last_name', 'email', 'birthdate']
+
+    user = request.user
+    if user.is_authenticated:
+        attrs = {user._meta.get_field(x).verbose_name: getattr(user, x) for x in ATTR_NAMES}
+    else:
+        attrs = {}
+    return render(request, 'account/profile.html', context=dict(attrs=attrs))
+
+
+class RememberMeView(View):
+    @never_cache
+    def post(self, request, *args, **kwargs):
+        remember_me = request.POST.get('remember_me', '')
+        if not remember_me:
+            return HttpResponseBadRequest()
+        if remember_me.strip().lower() == 'true':
+            remember_me = True
+        else:
+            remember_me = False
+
+        session = request.session
+        session['remember_me'] = remember_me
+
+        return HttpResponse()

@@ -20,8 +20,10 @@ env = environ.Env(
     SECRET_KEY=(str, ""),
     DATABASE_URL=(str, ""),
     ALLOWED_HOSTS=(list, []),
+    TUNNISTAMO_THEME=(str, 'helsinki'),
+    TRUSTED_PROXIES=(list, []),
 
-    STATIC_URL=(str, "/sso/static/"),
+    STATIC_URL=(str, '/static/'),
     STATIC_ROOT=(str, os.path.join(BASE_DIR, 'static')),
     MEDIA_ROOT=(str, os.path.join(BASE_DIR, 'media')),
     MEDIA_URL=(str, '/media/'),
@@ -56,6 +58,8 @@ env = environ.Env(
     SOCIAL_AUTH_SUOMIFI_UI_LOGO=(str, ""),
 )
 
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
@@ -68,41 +72,43 @@ ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 X_FRAME_OPTIONS = 'DENY'
 
+TUNNISTAMO_THEME = env('TUNNISTAMO_THEME')
+
+# The list of IP addresses that are considered trusted proxies. If REMOTE_ADDR
+# matches one of these addresses, X-Forwarded-For header will be trusted and the
+# client IP address is read from there.
+TRUSTED_PROXIES = env('TRUSTED_PROXIES')
+
 # Application definition
 
 INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.sites',
+    'django.contrib.messages',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.staticfiles',
 
+    'themes',
     'parler',
-    'sass_processor',
+    'compressor',
+    'bootstrap4',
 
     'oauth2_provider',
     'users',
     'oidc_provider',
 
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.facebook',
-    'allauth.socialaccount.providers.github',
-    'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.tumblr',
-
     'social_django',
 
     'rest_framework',
     'corsheaders',
-    'helsinki_theme',
-    'bootstrap3',
+    'svg',
     'crequest',
     'django_filters',
 
     'helusers',
+    'content',
 
     'yletunnus',
     'hkijwt',
@@ -119,6 +125,7 @@ INSTALLED_APPS = (
 )
 
 MIDDLEWARE = (
+    'tunnistamo.middleware.RealClientIPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -128,12 +135,13 @@ MIDDLEWARE = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'users.middleware.CustomDatabaseWhitelistCorsMiddleware',
     'crequest.middleware.CrequestMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'tunnistamo.middleware.InterruptedSocialAuthMiddleware',
     'tunnistamo.middleware.OIDCExceptionMiddleware',
     'tunnistamo.middleware.ContentSecurityPolicyMiddleware'
 )
 
-AUTHENTICATION_BACKENDS = (
+AUTHENTICATION_BACKENDS = [
     'auth_backends.eduhelfi.EduHelFiAzure',
     'auth_backends.espoo.EspooAzure',
     'auth_backends.adfs.helsinki.HelsinkiADFS',
@@ -144,7 +152,10 @@ AUTHENTICATION_BACKENDS = (
     'social_core.backends.github.GithubOAuth2',
     'django.contrib.auth.backends.ModelBackend',
     'auth_backends.suomifi.SuomiFiSAMLAuth',
-)
+    'auth_backends.axiell_aurora.AuroraAuth',
+    'auth_backends.adfs.turku.TurkuADFS',
+    'auth_backends.turku_suomifi.TurkuSuomiFiAuth',
+]
 
 RESTRICTED_AUTHENTICATION_BACKENDS = (
     'auth_backends.suomifi.SuomiFiSAMLAuth',
@@ -166,6 +177,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'social_django.context_processors.backends',
                 'social_django.context_processors.login_redirect',
+                'themes.context_processors.theme_variables',
+                'content.context_processors.general_content',
             ],
         },
     },
@@ -205,6 +218,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+LANGUAGE_SESSION_KEY = 'ui-language'
+
 LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
@@ -215,6 +230,22 @@ LOGIN_REDIRECT_URL = '/profile/'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 AUTH_USER_MODEL = 'users.User'
 
+# When should the session expire if the user has requested that we remember
+# them?
+SESSION_COOKIE_AGE_REMEMBER_ME = 7 * 24 * 3600  # 7 days
+# Expiration time when "remember me" is not requested
+SESSION_COOKIE_AGE = 30 * 60  # 30 mins
+
+# ID Tokens should expire no later than SESSION_COOKIE_AGE
+OIDC_IDTOKEN_EXPIRE = SESSION_COOKIE_AGE
+# Access tokens should expire at the same time with the ID Token.
+# They can be refreshed with a) the refresh token or b) silent renewal
+OIDC_TOKEN_EXPIRE = OIDC_IDTOKEN_EXPIRE
+
+
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
@@ -222,18 +253,42 @@ STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
     'npm.finders.NpmFinder',
-    'sass_processor.finders.CssFinder',
+    'compressor.finders.CompressorFinder',
 )
 
 STATIC_ROOT = env("STATIC_ROOT")
-STATIC_URL = env("STATIC_URL")
+STATIC_URL = env('STATIC_URL')
 
 MEDIA_ROOT = env("MEDIA_ROOT")
-MEDIA_URL = env("MEDIA_URL")
+MEDIA_URL = env('MEDIA_URL')
 
+NODE_MODULES_PATH = env("NODE_MODULES_ROOT")
 STATICFILES_DIRS = [
-    ('node_modules', env("NODE_MODULES_ROOT")),
+    ('styles', os.path.join(BASE_DIR, 'themes', 'styles')),
 ]
+
+SVG_DIRS = [
+    os.path.join(NODE_MODULES_PATH, 'simple-icons', 'icons'),
+    os.path.join(BASE_DIR, 'themes', 'static', 'svg'),
+]
+
+COMPRESS_PRECOMPILERS = (
+    ('text/x-scss', '%s/.bin/node-sass --importer=%s/node-sass-tilde-importer {infile} {outfile}' % (NODE_MODULES_PATH, NODE_MODULES_PATH)),  # noqa
+)
+
+# Bootstrap is included through our main style file
+BOOTSTRAP4 = {
+    'css_url': None,
+    'javascript_url': None,
+    'include_jquery': False,
+    'success_css_class': None,
+}
+
+NPM_FILE_PATTERNS = {
+    'bootstrap': ['dist/js/*', 'scss/*'],
+    'open-city-design': ['src/assets/*']
+}
+
 
 SITE_ID = 1
 
@@ -309,8 +364,18 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
 
-CSRF_COOKIE_NAME = 'sso-csrftoken'
-SESSION_COOKIE_NAME = 'sso-sessionid'
+COOKIE_PREFIX = 'sso'  # FIXME: get from env
+CSRF_COOKIE_NAME = '%s-csrftoken' % COOKIE_PREFIX
+SESSION_COOKIE_NAME = '%s-sessionid' % COOKIE_PREFIX
+LANGUAGE_COOKIE_NAME = '%s-ui-language' % COOKIE_PREFIX
+
+# Disable the SameSite parameter for cookies. Silent renew relies on iframes,
+# so the new Django default of 'SameSite=lax' breaks the functionality. This
+# will need to be revisited before Chrome 80 is out, because then Chrome will
+# default to 'SameSite=lax' if the parameter is missing.
+SESSION_COOKIE_SAMESITE = None
+# Make sure cookies are only being sent through encrypted protocols by default.
+SESSION_COOKIE_SECURE = True
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_SCHEME', 'https')
 
@@ -334,13 +399,20 @@ KEY_MANAGER_RSA_KEY_LENGTH = 4096
 KEY_MANAGER_RSA_KEY_MAX_AGE = 3 * 30
 KEY_MANAGER_RSA_KEY_EXPIRATION_PERIOD = 7
 
-SASS_PROCESSOR_INCLUDE_DIRS = [
-    env("NODE_MODULES_ROOT"),
-]
-
-SASS_PRECISION = 8
 
 TEST_NON_SERIALIZED_APPS = ['adfs_provider']
+
+
+#
+# Caching
+#
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': '%s-tunnistamo-cache' % COOKIE_PREFIX,
+    }
+}
+
 
 # Social Auth
 SOCIAL_AUTH_PIPELINE = (
@@ -425,6 +497,7 @@ SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
 SOCIAL_AUTH_GOOGLE_KEY = env("SOCIAL_AUTH_GOOGLE_KEY")
 SOCIAL_AUTH_GOOGLE_SECRET = env("SOCIAL_AUTH_GOOGLE_SECRET")
 SOCIAL_AUTH_GOOGLE_SCOPE = ['email']
+SOCIAL_AUTH_GOOGLE_USE_UNIQUE_USER_ID = True
 
 SOCIAL_AUTH_HELSINKI_ADFS_KEY = env("SOCIAL_AUTH_HELSINKI_ADFS_KEY")
 SOCIAL_AUTH_HELSINKI_ADFS_SECRET = env("SOCIAL_AUTH_HELSINKI_ADFS_SECRET")
@@ -537,11 +610,6 @@ SOCIAL_AUTH_SUOMIFI_ENTITY_ATTRIBUTES = [
         'values': ['full']
     },
 ]
-
-# The following regexp match is used to allow Suomi.fi authentication only when
-# using OpenId Connect provider.
-SOCIAL_AUTH_SUOMIFI_CALLBACK_MATCH = r'^/openid/authorize?.*'
-
 
 # Suomi.fi instance specific values.
 # These should be overwritten in local settings.

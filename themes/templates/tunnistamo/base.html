@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+{% load bootstrap4 static compress i18n %}{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
+
+<head>
+    <meta charset="utf-8">
+    <!--[if IE]><meta http-equiv="X-UA-Compatible" content="IE=edge" /><![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block head_title %}{% block title %}{% endblock %} | {{ general_content.site_owner_name|default:"Tunnistamo" }}{% endblock %}</title>
+{% compress css %}
+    <link type="text/x-scss" rel="stylesheet" href="/static/styles/themes/{{ tunnistamo_theme }}/main.scss" charset="utf-8">
+{% endcompress %}
+{% block extrastyle %}{% endblock %}
+</head>
+
+<body class="bg-brand-light">
+  <div class="container content-container">
+    <div class="row justify-content-center">
+      <div class="col-sm-10 col-md-8 col-lg-6 mt-5">
+        <div class="card content-card">
+          <header class="card-title">
+            <div class="logo theme-logo"></div>
+            <h1 class="service-title">Tunnistamo</h1>
+          </header>
+          {% if messages %}
+          <div role="alert" class="messages">
+              {% for message in messages %}
+              <div class="{{ message|bootstrap_message_classes }} alert-dismissible fade show">
+                <div>{{ message }}</div>
+                <button type="button" class="close" data-dismiss="alert" aria-label="{% trans 'Close' %}">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              {% endfor %}
+          </div>
+          {% endif %}
+          {% block body_content %}{% endblock %}
+          {% if general_content.privacy_policy_url and general_content.privacy_policy_link_name %}
+          <footer id="site-footer">
+            <div id="privacy-policy-section" class="text-muted text-right">
+              <small>
+                <a href="{{ general_content.privacy_policy_url }}" target="_blank">
+                  {{ general_content.privacy_policy_link_name }}
+                </a>
+              </small>
+            </div>
+          </footer>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% compress js %}
+  <script type='text/javascript' src="{% static 'admin/js/vendor/jquery/jquery.min.js' %}"></script>
+  <script type='text/javascript' src="{% static 'bootstrap/dist/js/bootstrap.min.js' %}"></script>
+  {% endcompress %}
+  {% block extrascript %}{% endblock %}
+</body>
+</html>

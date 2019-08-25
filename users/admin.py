@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.core.validators import URLValidator
 from oauth2_provider.models import get_application_model
+from parler.admin import TranslatableAdmin
 
 from .models import LoginMethod, User
 
@@ -43,7 +44,7 @@ admin.site.register(User, ExtendedUserAdmin)
 
 
 @admin.register(LoginMethod)
-class LoginMethodAdmin(admin.ModelAdmin):
+class LoginMethodAdmin(TranslatableAdmin):
     model = LoginMethod
 
 

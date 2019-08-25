@@ -20,6 +20,7 @@ alphanumeric_validator = RegexValidator(
 SCOPE_CHOICES = [
     ('email', _("E-mail")),
     ('profile', _("Profile")),
+    ('birthdate', _("Birthdate")),
     ('address', _("Address")),
     ('github_username', _("GitHub username")),
     ('ad_groups', _("AD Groups")),

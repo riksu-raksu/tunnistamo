@@ -4,7 +4,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse
 from django.urls import include, path, re_path
 from django.utils import translation
 from django.views.decorators.csrf import csrf_exempt
@@ -24,26 +23,11 @@ from services.views import ReportView
 from tunnistamo import social_auth_urls
 from users.api import TunnistamoAuthorizationView, UserConsentViewSet, UserLoginEntryViewSet
 from users.views import (
-    LoginView, LogoutView, TunnistamoOidcAuthorizeView, TunnistamoOidcEndSessionView, TunnistamoOidcTokenView
+    LoginView, LogoutView, TunnistamoOidcAuthorizeView, TunnistamoOidcEndSessionView,
+    TunnistamoOidcTokenView, RememberMeView, show_profile
 )
 
 from .api import GetJWTView, UserView
-
-
-def show_login(request):
-    html = "<html><body>"
-    if request.user.is_authenticated:
-        html += "<div>%s</div>" % request.user
-        if request.user.ad_groups.exists():
-            html += "<h3>AD groups</h3>"
-            html += "<ul>"
-            for group in request.user.ad_groups.all():
-                html += "<li>%s</li>" % str(group)
-            html += "</ul>"
-    else:
-        html += "not logged in"
-    html += "</body></html>"
-    return HttpResponse(html)
 
 
 class AllEnglishSchemaGenerator(SchemaGenerator):
@@ -66,8 +50,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('admin/report/', staff_member_required(ReportView.as_view())),
     path('api-tokens/', get_api_tokens_view),
-    path('accounts/profile/', show_login),
-    path('accounts/login/', LoginView.as_view()),
+    path('profile/', show_profile),
+    path('set-remember-me/', RememberMeView.as_view(), name='set_remember_me'),
+    path('accounts/login/', LoginView.as_view(), name='login'),
     path('accounts/logout/', LogoutView.as_view()),
     path('accounts/', include(auth_backends.urls, namespace='auth_backends')),
     path('accounts/', include(social_auth_urls, namespace='social')),

@@ -1,4 +1,4 @@
-django>=2.1.9,<2.2
+django
 django-multiselectfield
 django-oauth-toolkit
 django-parler
@@ -8,17 +8,16 @@ djangorestframework>=3.10
 pyjwt
 django-helusers
 django-allauth
-django-bootstrap3
+django-bootstrap4
 psycopg2
 --no-binary psycopg2
 raven
 PyJWT
 cryptography
 django-npm
-libsass
 django-compressor
+django-inline-svg
 django-environ
-django-sass-processor
 social-auth-core[openidconnect,saml]
 social-auth-app-django
 requests
@@ -29,6 +28,6 @@ django-ipware
 geoip2
 django-filter
 coreapi
-git+https://github.com/City-of-Helsinki/python3-saml.git@v1.5.0-tunnistamo
+python3-saml>=1.8.0
 ruamel.yaml
 git+https://github.com/City-of-Helsinki/django-translation-checker.git@master

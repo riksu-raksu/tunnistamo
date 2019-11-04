@@ -22,9 +22,10 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     TUNNISTAMO_THEME=(str, 'helsinki'),
 
-    STATIC_URL=(str, "/sso/static/"),
+    STATIC_URL=(str, '/static/'),
     STATIC_ROOT=(str, os.path.join(BASE_DIR, 'static')),
     MEDIA_ROOT=(str, os.path.join(BASE_DIR, 'media')),
+    MEDIA_URL=(str, '/media/'),
     NODE_MODULES_ROOT=(str, os.path.join(BASE_DIR, 'node_modules')),
 
     # Authentication settings
@@ -246,10 +247,10 @@ STATICFILES_FINDERS = (
 )
 
 STATIC_ROOT = env("STATIC_ROOT")
-STATIC_URL = '/sso/static/'
+STATIC_URL = env('STATIC_URL')
 
 MEDIA_ROOT = env("MEDIA_ROOT")
-MEDIA_URL = '/media/'
+MEDIA_URL = env('MEDIA_URL')
 
 NODE_MODULES_PATH = env("NODE_MODULES_ROOT")
 STATICFILES_DIRS = [

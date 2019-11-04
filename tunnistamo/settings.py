@@ -310,6 +310,14 @@ CSRF_COOKIE_NAME = '%s-csrftoken' % COOKIE_PREFIX
 SESSION_COOKIE_NAME = '%s-sessionid' % COOKIE_PREFIX
 LANGUAGE_COOKIE_NAME = '%s-ui-language' % COOKIE_PREFIX
 
+# Disable the SameSite parameter for cookies. Silent renew relies on iframes,
+# so the new Django default of 'SameSite=lax' breaks the functionality. This
+# will need to be revisited before Chrome 80 is out, because then Chrome will
+# default to 'SameSite=lax' if the parameter is missing.
+SESSION_COOKIE_SAMESITE = None
+# Make sure cookies are only being sent through encrypted protocols by default.
+SESSION_COOKIE_SECURE = True
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_SCHEME', 'https')
 
 ACCOUNT_EMAIL_REQUIRED = True

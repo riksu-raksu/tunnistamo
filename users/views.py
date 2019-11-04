@@ -237,6 +237,10 @@ class AuthenticationErrorView(TemplateView):
 
 class TunnistamoOidcAuthorizeView(AuthorizeView):
     def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            # Refresh the session for each authorize call
+            request.session.modified = True
+
         request.GET = _extend_scope_in_query_params(request.GET)
         request_locales = [l.strip() for l in request.GET.get('ui_locales', '').split(' ') if l]
         available_locales = [l[0] for l in settings.LANGUAGES]

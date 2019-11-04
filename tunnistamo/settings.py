@@ -177,6 +177,13 @@ SESSION_COOKIE_AGE_REMEMBER_ME = 7 * 24 * 3600  # 7 days
 # Expiration time when "remember me" is not requested
 SESSION_COOKIE_AGE = 30 * 60  # 30 mins
 
+# ID Tokens should expire no later than SESSION_COOKIE_AGE
+OIDC_IDTOKEN_EXPIRE = SESSION_COOKIE_AGE
+# Access tokens should expire at the same time with the ID Token.
+# They can be refreshed with a) the refresh token or b) silent renewal
+OIDC_CODE_EXPIRE = OIDC_IDTOKEN_EXPIRE
+
+
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 # Static files (CSS, JavaScript, Images)

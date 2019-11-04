@@ -113,8 +113,6 @@ INSTALLED_APPS = (
     'auth_backends',
 
     'translation_checker',
-
-    'utils',
 )
 
 MIDDLEWARE = (

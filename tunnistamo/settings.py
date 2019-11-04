@@ -20,6 +20,7 @@ env = environ.Env(
     SECRET_KEY=(str, ""),
     DATABASE_URL=(str, ""),
     ALLOWED_HOSTS=(list, []),
+    TUNNISTAMO_THEME=(str, 'helsinki'),
 
     STATIC_URL=(str, "/sso/static/"),
     STATIC_ROOT=(str, os.path.join(BASE_DIR, 'static')),
@@ -67,7 +68,7 @@ ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 X_FRAME_OPTIONS = 'DENY'
 
-TUNNISTAMO_THEME = 'helsinki'  # FIXME: from env
+TUNNISTAMO_THEME = env('TUNNISTAMO_THEME')
 
 # Application definition
 

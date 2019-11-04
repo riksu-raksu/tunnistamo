@@ -56,6 +56,8 @@ env = environ.Env(
     SOCIAL_AUTH_SUOMIFI_UI_LOGO=(str, ""),
 )
 
+if os.path.exists(os.path.join(BASE_DIR, '.env')):
+    environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/

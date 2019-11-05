@@ -8,10 +8,12 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import translation
+from django.utils.decorators import method_decorator
 from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.base import TemplateView
 from django.views.decorators.cache import never_cache
+from django.views.decorators.clickjacking import xframe_options_exempt
 from jwkest.jws import JWT
 from oauth2_provider.models import get_application_model
 from oidc_provider.lib.endpoints.authorize import AuthorizeEndpoint
@@ -236,6 +238,11 @@ class AuthenticationErrorView(TemplateView):
 
 
 class TunnistamoOidcAuthorizeView(AuthorizeView):
+    # AuthorizeView needs to be exempt from the default of X-Frame-Options: DENY
+    # because it is placed in an iframe when a public client does silent renew.
+    # We are ensuring redirect_uri matches, which will give protection against
+    # clickjacking.
+    @method_decorator(xframe_options_exempt)
     def get(self, request, *args, **kwargs):
         if request.user.is_authenticated:
             # Refresh the session for each authorize call

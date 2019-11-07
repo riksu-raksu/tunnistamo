@@ -231,7 +231,8 @@ SESSION_COOKIE_AGE = 30 * 60  # 30 mins
 OIDC_IDTOKEN_EXPIRE = SESSION_COOKIE_AGE
 # Access tokens should expire at the same time with the ID Token.
 # They can be refreshed with a) the refresh token or b) silent renewal
-OIDC_CODE_EXPIRE = OIDC_IDTOKEN_EXPIRE
+OIDC_TOKEN_EXPIRE = OIDC_IDTOKEN_EXPIRE
+
 
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'

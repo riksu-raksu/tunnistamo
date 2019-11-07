@@ -255,7 +255,6 @@ MEDIA_URL = env('MEDIA_URL')
 
 NODE_MODULES_PATH = env("NODE_MODULES_ROOT")
 STATICFILES_DIRS = [
-    ('node_modules', NODE_MODULES_PATH),
     ('styles', os.path.join(BASE_DIR, 'themes', 'styles')),
 ]
 

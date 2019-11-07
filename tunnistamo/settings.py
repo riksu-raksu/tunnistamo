@@ -276,7 +276,7 @@ BOOTSTRAP4 = {
 }
 
 NPM_FILE_PATTERNS = {
-    'bootstrap': ['dist/js/*'],
+    'bootstrap': ['dist/js/*', 'scss/*'],
     'open-city-design': ['src/assets/*']
 }
 

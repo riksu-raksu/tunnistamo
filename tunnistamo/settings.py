@@ -21,6 +21,7 @@ env = environ.Env(
     DATABASE_URL=(str, ""),
     ALLOWED_HOSTS=(list, []),
     TUNNISTAMO_THEME=(str, 'helsinki'),
+    TRUSTED_PROXIES=(list, []),
 
     STATIC_URL=(str, '/static/'),
     STATIC_ROOT=(str, os.path.join(BASE_DIR, 'static')),
@@ -73,6 +74,11 @@ X_FRAME_OPTIONS = 'DENY'
 
 TUNNISTAMO_THEME = env('TUNNISTAMO_THEME')
 
+# The list of IP addresses that are considered trusted proxies. If REMOTE_ADDR
+# matches one of these addresses, X-Forwarded-For header will be trusted and the
+# client IP address is read from there.
+TRUSTED_PROXIES = env('TRUSTED_PROXIES')
+
 # Application definition
 
 INSTALLED_APPS = (
@@ -117,6 +123,7 @@ INSTALLED_APPS = (
 )
 
 MIDDLEWARE = (
+    'tunnistamo.middleware.RealClientIPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
+from ipware import utils as ipware_utils
 from social_core.exceptions import SocialAuthBaseException
 from oidc_provider.lib.errors import BearerTokenError
 
@@ -140,3 +141,48 @@ class ContentSecurityPolicyMiddleware(object):
         if csp_settings.get('report_groups') and len(csp_settings.get('report_groups', {})) > 0:
             response['Report-To'] = json.dumps(csp_settings['report_groups'])
         return response
+
+
+class RealClientIPMiddleware(object):
+    """Set REMOTE_ADDR header based on data from trusted proxies"""
+
+    # These headers might be used to determine the client IP address.
+    # Paranoid as we are, we drop all of them after setting the right
+    # client IP address from a trusted proxy.
+    REMOVE_HEADERS = [
+        'HTTP_X_FORWARDED_FOR',
+        'X_FORWARDED_FOR',
+        'HTTP_CLIENT_IP',
+        'HTTP_X_REAL_IP',
+        'HTTP_X_FORWARDED',
+        'HTTP_X_CLUSTER_CLIENT_IP',
+        'HTTP_FORWARDED_FOR',
+        'HTTP_FORWARDED',
+        'HTTP_VIA',
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+
+        for header_name in self.REMOVE_HEADERS:
+            if header_name in request.META:
+                del request.META[header_name]
+
+        remote_addr = request.META.get('REMOTE_ADDR')
+
+        trusted_proxies = getattr(settings, 'TRUSTED_PROXIES', [])
+        for proxy_ip in trusted_proxies:
+            if remote_addr == proxy_ip:
+                from_trusted_proxy = True
+                break
+        else:
+            from_trusted_proxy = False
+
+        if from_trusted_proxy:
+            ips, ip_count = ipware_utils.get_ips_from_string(forwarded_for)
+            request.META['REMOTE_ADDR'] = ips[0]
+
+        return self.get_response(request)

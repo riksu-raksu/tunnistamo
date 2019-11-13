@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Tunnistamo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-04-17 07:26+0000\n"
+"POT-Creation-Date: 2019-11-13 18:57+0200\n"
 "PO-Revision-Date: 2019-04-17 07:55+0000\n"
 "Last-Translator: Timo Tuominen <dev@hel.fi>, 2019\n"
 "Language-Team: Finnish (https://www.transifex.com/city-of-helsinki-1/teams/98217/fi/)\n"
@@ -20,34 +20,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-
-#: adfs_provider/models.py
-msgid "Primary SID"
-msgstr ""
-
-#: adfs_provider/models.py
-msgid "Department name"
-msgstr ""
-
-#: adfs_provider/models.py
-msgid "Email"
-msgstr "Sähköpostiosoite"
-
-#: adfs_provider/models.py
-msgid "Username"
-msgstr "Käyttäjätunnus"
-
-#: adfs_provider/models.py oidc_apis/models.py oidc_apis/scopes.py
-msgid "AD Groups"
-msgstr "AD-ryhmät"
-
-#: adfs_provider/models.py
-msgid "First name"
-msgstr "Etunimi"
-
-#: adfs_provider/models.py
-msgid "Last name"
-msgstr "Sukunimi"
 
 #: auth_backends/adfs/turku.py
 msgid "Your AD account does not have an associated OID"
@@ -60,10 +32,6 @@ msgstr "Kirjastokortin tunnus"
 #: auth_backends/axiell_aurora.py
 msgid "Card PIN"
 msgstr "Tunnusluku (PIN)"
-
-#: auth_backends/axiell_aurora.py
-msgid "Library card login unavailable. Please try again later."
-msgstr "Kirjastokorttikirjautuminen pois käytöstä. Ole hyvä ja yritä uudelleen myöhemmin."
 
 #: auth_backends/axiell_aurora.py
 msgid "Invalid card number or PIN"
@@ -88,6 +56,10 @@ msgstr "palvelun omistajan nimi"
 #: content/models.py
 msgid "privacy policy URL"
 msgstr "linkki tietosuojaselosteeseen"
+
+#: content/models.py
+msgid "privacy policy link name"
+msgstr "tietosuojaselosteen linkin nimi"
 
 #: content/models.py
 msgid "general content"
@@ -181,6 +153,10 @@ msgstr "Sähköpostiosoite"
 msgid "Profile"
 msgstr "Profiili"
 
+#: oidc_apis/models.py oidc_apis/scopes.py
+msgid "Birthdate"
+msgstr "Syntymäaika"
+
 #: oidc_apis/models.py
 msgid "Address"
 msgstr "Osoite"
@@ -188,6 +164,10 @@ msgstr "Osoite"
 #: oidc_apis/models.py oidc_apis/scopes.py
 msgid "GitHub username"
 msgstr "GitHub käyttäjätunnus"
+
+#: oidc_apis/models.py oidc_apis/scopes.py
+msgid "AD Groups"
+msgstr "AD-ryhmät"
 
 #: oidc_apis/models.py
 msgid "API domain identifier, e.g. https://api.hel.fi/auth"
@@ -291,7 +271,7 @@ msgstr "Identiteetit"
 
 #: oidc_apis/scopes.py
 msgid "Access to cards and other identity information."
-msgstr "Lupa lukea korttitietoja ja lisätä kortteja käyttäjätilillesi"
+msgstr "Lupa lukea korttitietoja ja lisätä kortteja käyttäjätilillesi."
 
 #: oidc_apis/scopes.py
 msgid "Login history"
@@ -344,10 +324,6 @@ msgstr "Osoitetiedot"
 #: oidc_apis/scopes.py
 msgid "Access to your address. Includes country, locality, street and other information."
 msgstr "Lupa lukea osoitetiedot, jotka sisältävät muun muassa valtion, paikkakunnan ja katuosoitteen."
-
-#: oidc_apis/scopes.py
-msgid "Birthdate"
-msgstr "Syntymäaika"
 
 #: oidc_apis/scopes.py
 msgid "Access to your birthdate."
@@ -410,6 +386,10 @@ msgstr "Sulje"
 msgid "Authentication method temporarily unavailable."
 msgstr "Tunnistautumismenetelmä on väliaikaisesti pois käytöstä."
 
+#: tunnistamo/exceptions.py
+msgid "Your account is temporarily locked. Please try again later."
+msgstr "Tunnuksesi on väliaikaisesti lukittu. Ole hyvä ja yritä uudelleen myöhemmin."
+
 #: tunnistamo/middleware.py
 msgid "Authentication failed."
 msgstr "Tunnistautuminen epäonnistui."
@@ -447,6 +427,14 @@ msgstr ""
 #: users/models.py
 msgid "short description"
 msgstr "lyhyt kuvaus"
+
+#: users/models.py
+msgid "Post Logout Redirect URIs"
+msgstr ""
+
+#: users/models.py
+msgid "Enter each URI on a new line."
+msgstr ""
 
 #: users/models.py
 msgid "OIDC Client"

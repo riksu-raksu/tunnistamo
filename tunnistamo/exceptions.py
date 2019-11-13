@@ -13,3 +13,7 @@ class FriendlySocialAuthException(SocialAuthBaseException):
 
 class AuthBackendUnavailable(FriendlySocialAuthException):
     default_message = _('Authentication method temporarily unavailable.')
+
+
+class AccountTemporarilyLocked(FriendlySocialAuthException):
+    default_message = _('Your account is temporarily locked. Please try again later.')

@@ -18,7 +18,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 env = environ.Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, ""),
-    DATABASE_URL=(str, ""),
+    DATABASE_URL=(str, "postgres:///tunnistamo"),
+    CACHE_URL=(str, "locmemcache://tunnistamo"),
     ALLOWED_HOSTS=(list, []),
     TUNNISTAMO_THEME=(str, 'helsinki'),
     TRUSTED_PROXIES=(list, []),
@@ -189,15 +190,7 @@ WSGI_APPLICATION = 'tunnistamo.wsgi.application'
 #
 # Database
 #
-if env.db("DATABASE_URL"):
-    DATABASES = {"default": env.db("DATABASE_URL")}
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'NAME': 'tunnistamo',
-        }
-    }
+DATABASES = {"default": env.db("DATABASE_URL")}
 
 #
 # Internationalization
@@ -407,10 +400,7 @@ TEST_NON_SERIALIZED_APPS = ['adfs_provider']
 # Caching
 #
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': '%s-tunnistamo-cache' % COOKIE_PREFIX,
-    }
+    'default': env.cache('CACHE_URL')
 }
 
 

@@ -13,6 +13,9 @@ from social_core.backends.legacy import LegacyAuth
 from social_core.exceptions import AuthMissingParameter
 from social_django.views import complete as complete_view
 
+from tunnistamo import ratelimit
+from tunnistamo.exceptions import AccountTemporarilyLocked, AuthBackendUnavailable
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +102,9 @@ class AuroraAuth(LegacyAuth):
                     borrower_info = self.get_borrower_info(form.cleaned_data)
                     return complete_view(request, self.name, borrower_info=borrower_info)
                 except APIError as err:
-                    # Log to sentry
+                    # FIXME: Log to sentry
                     logger.exception('Unable to get borrower info', exc_info=err)
-                    form.add_error(None, _('Library card login unavailable. Please try again later.'))
+                    raise AuthBackendUnavailable()
                 except AuthenticationFailed:
                     form.add_error(None, _('Invalid card number or PIN'))
         else:
@@ -121,6 +124,17 @@ class AuroraAuth(LegacyAuth):
 
     def get_borrower_info(self, data):
         self._validate_settings()
+
+        borrower_card_id = self.data[self.ID_KEY].strip()
+
+        ratelimit_params = dict(
+            group='auth:%s' % self.name,
+            key=lambda group, request: borrower_card_id,
+            rate='5/h'
+        )
+        limit = ratelimit.get_usage(None, **ratelimit_params, increment=True)
+        if limit['should_limit']:
+            raise AccountTemporarilyLocked()
 
         resp = self.api_post('StartApiSession', data=dict(
             Username=self.setting('API_USERNAME'),
@@ -161,6 +175,9 @@ class AuroraAuth(LegacyAuth):
             raise APIError('Missing data: PersonalInfo')
         if not personal_info.get('IdBorrower'):
             raise APIError('Missing data: IdBorrower')
+
+        # Reset the rate limiting on successful login
+        ratelimit.get_usage(None, **ratelimit_params, reset=True)
 
         return borrower_info
 

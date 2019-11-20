@@ -16,6 +16,16 @@
 - Place `local_settings.py` in repo root and put the settings in the following sections there.
 - Create a superuser for the Django admin UI.
 
+### uWSGI
+
+Because of the size of the HTTP requests related to OIDC, the default uWSGI buffer size of 4k will not be enough. Increase it by configuring the following in your uWSGI .ini file:
+
+```
+[uwsgi]
+...
+buffer-size=32768
+```
+
 ### Turku suomi.fi auth backend
 
 - Configure the following settings:

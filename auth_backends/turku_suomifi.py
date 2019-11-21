@@ -20,6 +20,8 @@ from social_core.exceptions import (
     AuthMissingParameter, AuthFailed, AuthStateForbidden
 )
 
+from tunnistamo import auditlog
+
 
 session_engine = import_module(settings.SESSION_ENGINE)
 
@@ -124,6 +126,9 @@ class TurkuSuomiFiAuth(LegacyAuth):
         self.strategy.storage.association.remove([nonce_id])
 
     def auth_html(self):
+        request = self.strateqy.request
+
+        auditlog.log_authentication_request(request, self.name)
         REQUIRED_SETTINGS = ['API_URL', 'API_KEY', 'SP_NAME']
         for setting_name in REQUIRED_SETTINGS:
             if not self.setting(setting_name):
@@ -140,7 +145,7 @@ class TurkuSuomiFiAuth(LegacyAuth):
         # and refer to it with a randomly generated nonce that we store
         # in the RelayState SAML parameter.
 
-        session = self.strategy.request.session
+        session = request.session
         # If the session hasn't ever been saved, it doesn't have a session
         # key yet.
         if not session.is_empty() and not session.session_key:
@@ -188,11 +193,14 @@ class TurkuSuomiFiAuth(LegacyAuth):
         data = json.loads(resp)
         status_code = data.get('status_code', '')
         if status_code.lower() != 'success':
+            auditlog.log_authentication_failure(request, self.name)
             raise AuthFailed(self, 'Authentication unsuccessful: %s' % status_code)
 
         oid = data.get('oid', '')
         if not oid:
             raise AuthMissingParameter(self, 'oid')
+
+        auditlog.log_authentication_success(request, self.name, identifier=oid)
 
         response = {
             'oid': oid,

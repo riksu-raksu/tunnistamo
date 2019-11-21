@@ -13,7 +13,7 @@ from social_core.backends.legacy import LegacyAuth
 from social_core.exceptions import AuthMissingParameter
 from social_django.views import complete as complete_view
 
-from tunnistamo import ratelimit
+from tunnistamo import ratelimit, auditlog
 from tunnistamo.exceptions import AccountTemporarilyLocked, AuthBackendUnavailable
 
 
@@ -125,6 +125,7 @@ class AuroraAuth(LegacyAuth):
     def get_borrower_info(self, data):
         self._validate_settings()
 
+        request = self.strategy.request
         borrower_card_id = self.data[self.ID_KEY].strip()
 
         ratelimit_params = dict(
@@ -134,6 +135,7 @@ class AuroraAuth(LegacyAuth):
         )
         limit = ratelimit.get_usage(None, **ratelimit_params, increment=True)
         if limit['should_limit']:
+            auditlog.log_authentication_rate_limited(request, self.name, identifier=borrower_card_id)
             raise AccountTemporarilyLocked()
 
         resp = self.api_post('StartApiSession', data=dict(
@@ -156,6 +158,7 @@ class AuroraAuth(LegacyAuth):
         resp = self.api_post('BorrowerLogin', data=data)
         result = int(resp.get('Result'))
         if result != 1:
+            auditlog.log_authentication_failure(request, self.name, identifier=borrower_card_id)
             raise AuthenticationFailed('BorrowerLogin returned %d: %s' % (result, resp.get('Message')))
 
         login_info = resp.get('LoginInfo', {})
@@ -176,6 +179,7 @@ class AuroraAuth(LegacyAuth):
         if not personal_info.get('IdBorrower'):
             raise APIError('Missing data: IdBorrower')
 
+        auditlog.log_authentication_success(request, self.name, identifier=borrower_card_id)
         # Reset the rate limiting on successful login
         ratelimit.get_usage(None, **ratelimit_params, reset=True)
 

@@ -1,4 +1,3 @@
-import re
 from pydoc import locate
 from urllib.parse import parse_qs, urlparse
 
@@ -24,6 +23,7 @@ from oidc_provider.views import AuthorizeView, EndSessionView
 from social_django.models import UserSocialAuth
 from social_django.utils import load_backend, load_strategy
 
+from tunnistamo import auditlog
 from oidc_apis.models import ApiScope
 
 from .models import LoginMethod, OidcClientOptions
@@ -91,6 +91,8 @@ class LoginView(TemplateView):
     def get(self, request, *args, **kwargs):  # noqa  (too complex)
         # Log the user out first so that we don't end up in the PSA "connect"
         # flow.
+        auditlog.log_login(request)
+
         if self.request.user.is_authenticated:
             auth_logout(self.request)
 
@@ -244,9 +246,15 @@ class TunnistamoOidcAuthorizeView(AuthorizeView):
     # clickjacking.
     @method_decorator(xframe_options_exempt)
     def get(self, request, *args, **kwargs):
+        auditlog.log_authorize(request)
+
         if request.user.is_authenticated:
             # Refresh the session for each authorize call
             request.session.modified = True
+
+        #
+        # TODO: Check for requested ACR, logout if incompatible
+        #
 
         request.GET = _extend_scope_in_query_params(request.GET)
         request_locales = [l.strip() for l in request.GET.get('ui_locales', '').split(' ') if l]
@@ -280,6 +288,8 @@ class TunnistamoOidcAuthorizeView(AuthorizeView):
 
 class TunnistamoOidcEndSessionView(EndSessionView):
     def dispatch(self, request, *args, **kwargs):
+        auditlog.log_end_session(request)
+
         backend_name = None
         user = request.user
         if user.is_authenticated:
@@ -300,6 +310,7 @@ class TunnistamoOidcEndSessionView(EndSessionView):
 
 class TunnistamoOidcTokenView(View):
     def post(self, request, *args, **kwargs):
+        auditlog.log_token_retrieval(request)
         token = TokenEndpoint(request)
 
         try:

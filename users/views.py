@@ -88,6 +88,7 @@ class LoginView(TemplateView):
 
         return methods
 
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):  # noqa  (too complex)
         # Log the user out first so that we don't end up in the PSA "connect"
         # flow.

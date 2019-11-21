@@ -369,6 +369,14 @@ LANGUAGE_COOKIE_NAME = '%s-ui-language' % COOKIE_PREFIX
 SESSION_COOKIE_SAMESITE = None
 # Make sure cookies are only being sent through encrypted protocols by default.
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+
+# Enable various protections in SecureMiddleware
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 365 * 24 * 3600  # One year
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_SCHEME', 'https')
 

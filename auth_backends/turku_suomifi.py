@@ -126,7 +126,7 @@ class TurkuSuomiFiAuth(LegacyAuth):
         self.strategy.storage.association.remove([nonce_id])
 
     def auth_html(self):
-        request = self.strateqy.request
+        request = self.strategy.request
 
         auditlog.log_authentication_request(request, self.name)
         REQUIRED_SETTINGS = ['API_URL', 'API_KEY', 'SP_NAME']

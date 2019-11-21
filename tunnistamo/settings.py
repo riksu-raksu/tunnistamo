@@ -127,6 +127,7 @@ INSTALLED_APPS = (
 
 MIDDLEWARE = (
     'tunnistamo.middleware.RealClientIPMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

@@ -83,7 +83,7 @@ TRUSTED_PROXIES = env('TRUSTED_PROXIES')
 # Application definition
 
 INSTALLED_APPS = (
-    'django.contrib.admin',
+    'admin_site',  # replaces 'django.contrib.admin'
     'django.contrib.auth',
     'django.contrib.sites',
     'django.contrib.messages',

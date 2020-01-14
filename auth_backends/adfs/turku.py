@@ -1,10 +1,15 @@
+import base64
 import logging
 import json
-from social_core.backends.saml import SAMLAuth, SAMLIdentityProvider
-from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+from datetime import datetime
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from django.core.cache import cache
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+from social_core.backends.saml import SAMLAuth, SAMLIdentityProvider
 
 from tunnistamo.exceptions import FriendlySocialAuthException
 
@@ -27,6 +32,22 @@ class TurkuADFS(SAMLAuth):
         ret['security']['wantNameId'] = False
         return ret
 
+    def find_valid_certificate(self, idp):
+        now = datetime.utcnow()
+        # Find the first valid certificate based on the certificate
+        # validity timestamps.
+        for cert_b64 in idp['x509certMulti']['signing']:
+            cert_buf = base64.b64decode(cert_b64)
+            cert = x509.load_der_x509_certificate(cert_buf, default_backend())
+            if now > cert.not_valid_after:
+                continue
+            if now < cert.not_valid_before:
+                continue
+            break
+        else:
+            raise Exception('No valid X.509 certificates found in SAML2 metadata')
+        return cert_b64
+
     @cached_property
     def remote_metadata(self):
         """Load the IdP metadata from the remote server and cache it for future accesses"""
@@ -34,16 +55,18 @@ class TurkuADFS(SAMLAuth):
         cache_key = '%s-idp-metadata' % self.name
         cached_metadata = cache.get(cache_key)
         if cached_metadata:
-            return json.loads(cached_metadata)
+            idp_config = json.loads(cached_metadata)
+        else:
+            idp_config = OneLogin_Saml2_IdPMetadataParser.parse_remote(self.metadata_url)
 
-        config = OneLogin_Saml2_IdPMetadataParser.parse_remote(self.metadata_url)
-        idp = config['idp']
+        idp = idp_config['idp']
+        cert = self.find_valid_certificate(idp)
         out = {
             'entity_id': idp['entityId'],
             'url': idp['singleSignOnService']['url'],
-            'x509cert': idp['x509certMulti']['signing'][0],
+            'x509cert': cert,
         }
-        cache.set(cache_key, json.dumps(out), timeout=24 * 3600)
+        cache.set(cache_key, json.dumps(idp_config), timeout=24 * 3600)
 
         return out
 

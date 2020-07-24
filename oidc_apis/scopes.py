@@ -123,6 +123,23 @@ class ReducedStandardScopeClaims(StandardScopeClaims):
         return {'birthdate': self.userinfo.get('birthdate')}
 
 
+class TurkuSuomiFiUserAttributeScopeClaims(ScopeClaims):
+    def scope_address(self):
+        address = {}
+        try:
+            social_user = UserSocialAuth.objects.get(user=self.user, provider='turku_suomifi')
+            extra_data = social_user.extra_data
+            address['address'] = {}
+            address['address']['municipality_code'] = extra_data['municipality_code']
+            address['address']['municipality_name'] = extra_data['municipality_name']
+            address['address']['postal_code'] = extra_data['postal_code']
+            address['non_disclosure'] = extra_data['non_disclosure']
+        except UserSocialAuth.DoesNotExist:
+            pass
+
+        return address
+
+
 class SuomiFiUserAttributeScopeClaimsMeta(type):
     def __dir__(cls):
         names = super().__dir__()
@@ -177,6 +194,7 @@ class CombinedScopeClaims(ScopeClaims):
         LoginEntriesScopeClaims,
         AdGroupsScopeClaims,
         SuomiFiUserAttributeScopeClaims,
+        TurkuSuomiFiUserAttributeScopeClaims,
         OptionalOpenIDScopeClaims,
     ]
 

@@ -83,7 +83,7 @@ class OpasADFS(SAMLAuth):
         else:
             idp_config = enabled_idps[idp_name]
 
-        idp_config['attr_user_permanent_id'] = 'http://schemas.microsoft.com/ws/2013/11/alternateloginid'
+        idp_config['attr_user_permanent_id'] = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'
         idp_config['attr_email'] = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'
         idp_config['attr_full_name'] = 'http://schemas.xmlsoap.org/claims/CommonName'
         idp_config['attr_first_name'] = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'

@@ -62,6 +62,7 @@ class TurkuSuomiFiAuth(LegacyAuth):
         attrs = response['attributes']
         out['first_name'] = attrs.get('firstName', None)
         out['last_name'] = attrs.get('sn', None)
+        out['email'] = attrs.get('mail', None)
         birthdate = attrs.get('nationalIdentificationNumber', '')
         if birthdate:
             m = re.match(r'([0-9]{2})([0-9]{2})([0-9]{2})([A-])', birthdate)

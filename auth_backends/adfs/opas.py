@@ -24,6 +24,7 @@ class NoAssociatedOID(FriendlySocialAuthException):
 class OpasADFS(SAMLAuth):
     name = 'opas_adfs'
     metadata_url = 'https://sts.edu.turku.fi/federationmetadata/2007-06/federationmetadata.xml'
+    EXTRA_DATA = ['school_role']
 
     def generate_saml_config(self, idp=None):
         ret = super().generate_saml_config(idp)
@@ -85,6 +86,7 @@ class OpasADFS(SAMLAuth):
         idp_config['attr_full_name'] = 'http://schemas.xmlsoap.org/claims/CommonName'
         idp_config['attr_first_name'] = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'
         idp_config['attr_last_name'] = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname'
+        idp_config['attr_role'] = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
 
         return SAMLIdentityProvider(idp_name, **idp_config)
 
@@ -109,3 +111,19 @@ class OpasADFS(SAMLAuth):
 
     def is_email_needed(self, **kwargs):
         return False
+
+    def get_user_details(self, response):
+        # get the default user details from the super class
+        # and add the 'role' among them
+
+        user_details = super().get_user_details(response)
+        idp = self.get_idp()
+
+        role = idp.get_attr(response['attributes'], 'attr_role', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'),
+        if isinstance(role, tuple):
+            role = role[0]
+
+        if role:
+            user_details['school_role'] = role
+
+        return user_details

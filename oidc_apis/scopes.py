@@ -107,6 +107,7 @@ class ReducedStandardScopeClaims(StandardScopeClaims):
             'picture': self.userinfo.get('picture'),
             'updated_at': self.userinfo.get('updated_at'),
         }
+        self.__insert_student_role_if_applicable(dic)
 
         return dic
 
@@ -121,6 +122,16 @@ class ReducedStandardScopeClaims(StandardScopeClaims):
 
     def scope_birthdate(self):
         return {'birthdate': self.userinfo.get('birthdate')}
+
+    def __insert_student_role_if_applicable(self, attributes):
+        # opas_adfs provider inserts "school_role" in the extra data
+        try:
+            social_user = UserSocialAuth.objects.get(user=self.user, provider='opas_adfs')
+            extra_data = social_user.extra_data
+            key = 'school_role'
+            attributes[key] = extra_data[key] if key in extra_data else None
+        except UserSocialAuth.DoesNotExist:
+            pass
 
 
 class TurkuSuomiFiUserAttributeScopeClaims(ScopeClaims):

@@ -28,7 +28,7 @@ class OpasADFS(SAMLAuth):
 
     def generate_saml_config(self, idp=None):
         ret = super().generate_saml_config(idp)
-        ret['security']['wantAssertionsSigned'] = True,
+        ret['security']['wantAssertionsSigned'] = True
         ret['security']['wantNameId'] = False
         return ret
 
@@ -119,10 +119,7 @@ class OpasADFS(SAMLAuth):
         user_details = super().get_user_details(response)
         idp = self.get_idp()
 
-        role = idp.get_attr(response['attributes'], 'attr_role', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'),
-        if isinstance(role, tuple):
-            role = role[0]
-
+        role = idp.get_attr(response['attributes'], 'attr_role', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role')
         if role:
             user_details['school_role'] = role
 
